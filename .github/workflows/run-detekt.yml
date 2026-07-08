@@ -4,9 +4,12 @@ on:
   push:
     branches:
       - main
+      - feat/season-theme
   pull_request:
     branches:
       - main
+      - feat/season-theme
+  workflow_dispatch:
 
 jobs:
   code-quality:

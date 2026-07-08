@@ -4,9 +4,12 @@ on:
   push:
     branches:
       - ci/build-sample-apk
+      - feat/season-theme
   pull_request:
     branches:
       - ci/build-sample-apk
+      - feat/season-theme
+      - main
   workflow_dispatch:
 
 permissions:
