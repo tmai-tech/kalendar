@@ -51,10 +51,20 @@ jobs:
           echo "path=$APK" >> "$GITHUB_OUTPUT"
           echo "Found APK: $APK ($(du -h "$APK" | cut -f1))"
 
+      - name: Rename APK for release
+        id: named
+        run: |
+          SRC="${{ steps.apk.outputs.path }}"
+          OUT="sample/build/outputs/apk/kalendar-sample-debug-${GITHUB_SHA::7}.apk"
+          cp "$SRC" "$OUT"
+          echo "path=$OUT" >> "$GITHUB_OUTPUT"
+          echo "filename=$(basename "$OUT")" >> "$GITHUB_OUTPUT"
+          ls -lh "$OUT"
+
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: sample-debug-${{ github.sha }}
-          path: ${{ steps.apk.outputs.path }}
+          name: kalendar-sample-debug-${{ github.sha }}
+          path: ${{ steps.named.outputs.path }}
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 30

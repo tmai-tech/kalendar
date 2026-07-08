@@ -17,7 +17,6 @@
 package com.himanshoe.kalendar
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
@@ -206,9 +205,9 @@ internal fun isDateOutOfBounds(
     minDate: LocalDate?,
     maxDate: LocalDate?,
 ): Boolean {
-    if (minDate != null && date < minDate) return true
-    if (maxDate != null && date > maxDate) return true
-    return false
+    val beforeMin = minDate != null && date < minDate
+    val afterMax = maxDate != null && date > maxDate
+    return beforeMin || afterMax
 }
 
 internal fun getMonthDates(
