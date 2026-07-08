@@ -8,6 +8,12 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **`KalendarType.Season`** — season-overview calendar showing the three meteorological months of
+  the current season (Spring / Summer / Autumn / Winter) with season-tinted chrome. Winter spans
+  the December–February year boundary. Includes public helpers `seasonPeriodOf`,
+  `KalendarSeasonPeriod`, and `KalendarSeason.defaultPalette()`.
+
 ## [2.0.0-RC1] – 2026
 
 ### Breaking changes from 1.x

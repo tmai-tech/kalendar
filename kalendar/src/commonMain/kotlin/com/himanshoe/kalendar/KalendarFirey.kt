@@ -91,29 +91,33 @@ private fun KalendarFireyContent(
     }
     var clickedNewDate by remember { mutableStateOf(selectedDate) }
     var clickedNewDates by remember {
-        mutableStateOf(
-            if (config.initialSelectedDates.isNotEmpty()) config.initialSelectedDates
-            else listOf(selectedDate)
-        )
+        mutableStateOf(config.initialSelectedDates)
+    }
+    LaunchedEffect(selectedDate) {
+        clickedNewDate = selectedDate
     }
     val daysOfWeek = DayOfWeek.entries.rotate(startDayOfWeek.ordinal)
-    val displayDates by remember(currentDay) {
+    val displayDates by remember(currentDay, startDayOfWeek) {
         mutableStateOf(getWeekDates(currentDay, startDayOfWeek))
     }
     val eventsByDate = remember(events) { events.groupBy { it.date } }
+    val multiSelectDates = when (onDaySelectionAction) {
+        is OnDaySelectionAction.Multiple -> clickedNewDates
+        else -> emptyList()
+    }
 
     val canGoBack = config.minDate?.let { min ->
-        currentDay.minus(7, DateTimeUnit.DAY) >= min
+        getWeekDates(currentDay, startDayOfWeek).first() > min
     } ?: true
     val canGoForward = config.maxDate?.let { max ->
-        currentDay.plus(7, DateTimeUnit.DAY) <= max
+        getWeekDates(currentDay, startDayOfWeek).last() < max
     } ?: true
 
     DisposableEffect(controller) {
-        controller?.attachScrollImpl { date ->
+        val generation = controller?.attachScrollImpl { date ->
             currentDay = date
         }
-        onDispose { controller?.detachScrollImpl() }
+        onDispose { generation?.let { controller?.detachScrollImpl(it) } }
     }
 
     LaunchedEffect(currentDay) {
@@ -151,24 +155,31 @@ private fun KalendarFireyContent(
             dates = { displayDates },
         ) { date ->
             val dateEvents = eventsByDate[date] ?: emptyList()
+            val outOfBounds = isDateOutOfBounds(date, config.minDate, config.maxDate)
             if (dayContent != null) {
-                val isSelected = date == clickedNewDate || clickedNewDates.contains(date)
+                val isSelected = when (onDaySelectionAction) {
+                    is OnDaySelectionAction.Multiple -> date in multiSelectDates
+                    is OnDaySelectionAction.Range ->
+                        selectedRange.value?.let { date in it } == true || date == clickedNewDate
+                    else -> date == clickedNewDate
+                }
                 dayContent(date, isSelected, dateEvents)
             } else {
                 KalendarDay(
                     date = date,
                     selectedRange = selectedRange.value,
-                    selectedDates = clickedNewDates,
+                    selectedDates = multiSelectDates,
                     onDayClick = { clickedDate, clickedEvents: List<KalendarEvent> ->
                         clickedDate.onDayClick(
                             events = clickedEvents,
+                            allEvents = events,
                             rangeStartDate = rangeStartDate,
                             rangeEndDate = rangeEndDate,
                             onDaySelectionAction = onDaySelectionAction,
                             onClickedNewDate = { clickedNewDate = it },
                             onMultipleClickedNewDate = { date ->
                                 clickedNewDates = clickedNewDates.toMutableList().apply {
-                                    if (clickedNewDates.contains(date)) remove(date) else add(date)
+                                    if (contains(date)) remove(date) else add(date)
                                 }
                             },
                             onClickedRangeStartDate = { rangeStartDate = it },
@@ -179,7 +190,7 @@ private fun KalendarFireyContent(
                     dayConfig = config.dayConfig,
                     events = dateEvents,
                     selectedDate = clickedNewDate,
-                    isDisabled = config.disabledDates(date),
+                    isDisabled = config.disabledDates(date) || outOfBounds,
                 )
             }
         }

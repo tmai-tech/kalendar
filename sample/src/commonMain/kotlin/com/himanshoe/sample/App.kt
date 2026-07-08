@@ -41,7 +41,7 @@ fun App() {
             selectedDate = Clock.System.todayIn(TimeZone.currentSystemDefault()),
             modifier = Modifier.fillMaxWidth(),
             events = emptyList(),
-            type = KalendarType.Aerial,
+            type = KalendarType.Season,
             onDaySelectionAction = OnDaySelectionAction.Multiple { date, events ->
                 println("Selected Date: $date with events: $events")
             },

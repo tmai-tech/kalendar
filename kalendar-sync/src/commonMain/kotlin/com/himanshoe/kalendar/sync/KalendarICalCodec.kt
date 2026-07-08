@@ -51,6 +51,7 @@ internal object KalendarICalCodec {
             appendLine("DTSTART;VALUE=DATE:${event.date.toIcalDate()}")
             appendLine("DTEND;VALUE=DATE:${event.date.plusDays(1).toIcalDate()}")
         } else {
+            // Floating local date-time (no Z) — wall-clock time without claiming UTC
             val startTime = event.startTime ?: LocalTime(0, 0)
             val endTime = event.endTime ?: LocalTime(23, 59)
             appendLine("DTSTART:${LocalDateTime(event.date, startTime).toIcalDateTime()}")
@@ -152,7 +153,8 @@ internal object KalendarICalCodec {
         "%04d%02d%02d".format(year, monthNumber, dayOfMonth)
 
     private fun LocalDateTime.toIcalDateTime(): String =
-        "%04d%02d%02dT%02d%02d%02dZ".format(
+        // Floating local time (omit Z) so importers treat values as wall-clock local, not UTC
+        "%04d%02d%02dT%02d%02d%02d".format(
             date.year, date.monthNumber, date.dayOfMonth,
             hour, minute, second
         )

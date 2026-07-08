@@ -17,6 +17,7 @@
 package com.himanshoe.kalendar
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,7 +29,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
@@ -100,16 +101,31 @@ private fun KalendarAgendaContent(
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 groupedEvents.forEach { (date, dateEvents) ->
-                    item(key = date.toEpochDays()) {
+                    item(key = "header_${date.toEpochDays()}") {
                         AgendaDateHeader(date = date, headerConfig = config.headerConfig)
                     }
-                    items(
+                    itemsIndexed(
                         items = dateEvents,
-                        key = { event -> "${event.date}_${event.eventName}_${event.startTime}" },
-                    ) { event ->
-                        AgendaEventRow(event = event)
+                        key = { index, event ->
+                            "event_${date.toEpochDays()}_${index}_${event.eventName.hashCode()}"
+                        },
+                    ) { _, event ->
+                        AgendaEventRow(
+                            event = event,
+                            onClick = {
+                                when (val action = onDaySelectionAction) {
+                                    is OnDaySelectionAction.Single ->
+                                        action.onDayClick(event.date, dateEvents)
+                                    is OnDaySelectionAction.Multiple ->
+                                        action.onDayClick(event.date, dateEvents)
+                                    is OnDaySelectionAction.Range -> Unit
+                                }
+                            },
+                        )
                     }
-                    item { Spacer(modifier = Modifier.height(8.dp)) }
+                    item(key = "spacer_${date.toEpochDays()}") {
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
                 }
             }
         }
@@ -136,11 +152,15 @@ private fun AgendaDateHeader(
 }
 
 @Composable
-private fun AgendaEventRow(event: KalendarEvent) {
+private fun AgendaEventRow(
+    event: KalendarEvent,
+    onClick: () -> Unit,
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 2.dp),
+            .padding(horizontal = 16.dp, vertical = 2.dp)
+            .clickable(onClick = onClick),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = Color(0xFFFDF6F7)),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),

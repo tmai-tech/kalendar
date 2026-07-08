@@ -29,6 +29,8 @@ fun LocalDate.onDayClick(
     onClickedRangeStartDate: (LocalDate?) -> Unit,
     onClickedRangeEndDate: (LocalDate?) -> Unit,
     onUpdateSelectedRange: (KalendarSelectedDayRange?) -> Unit,
+    /** Full event list for range selection (events on every date in the range). */
+    allEvents: List<KalendarEvent> = events,
 ) {
     when (onDaySelectionAction) {
         is OnDaySelectionAction.Single -> {
@@ -40,6 +42,7 @@ fun LocalDate.onDayClick(
             if (rangeStartDate == null || rangeEndDate != null) {
                 onClickedRangeStartDate(this)
                 onClickedRangeEndDate(null)
+                onUpdateSelectedRange(null)
             } else {
                 var newRangeStartDate = rangeStartDate
                 var newRangeEndDate = this
@@ -55,7 +58,8 @@ fun LocalDate.onDayClick(
                     endInclusive = newRangeEndDate,
                 )
                 onUpdateSelectedRange(range)
-                onDaySelectionAction.onRangeSelected(range, events)
+                val eventsInRange = allEvents.filter { it.date in range }
+                onDaySelectionAction.onRangeSelected(range, eventsInRange)
             }
             onClickedNewDate(this)
         }

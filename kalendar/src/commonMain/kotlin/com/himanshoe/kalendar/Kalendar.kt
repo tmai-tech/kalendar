@@ -125,6 +125,16 @@ fun Kalendar(
             dayContent = dayContent,
         )
 
+        KalendarType.Season -> KalendarSeason(
+            selectedDate = selectedDate,
+            modifier = modifier,
+            onDaySelectionAction = onDaySelectionAction,
+            config = config,
+            events = events,
+            controller = controller,
+            dayContent = dayContent,
+        )
+
         KalendarType.Agenda -> KalendarAgenda(
             events = events,
             config = config,
