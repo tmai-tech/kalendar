@@ -19,6 +19,7 @@ package com.himanshoe.kalendar.sync
 import kotlinx.datetime.LocalDate
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 class KalendarRecurrenceExpanderTest {
@@ -189,21 +190,15 @@ class KalendarRecurrenceExpanderTest {
     }
 
     @Test
-    fun intervalZeroDoesNotHang() {
-        val template = BasicKalendarSyncEvent(
-            date = LocalDate(2026, 1, 1),
-            eventName = "Daily",
-            recurrenceRule = KalendarRule(
+    fun intervalZero_isRejectedByRule() {
+        // KalendarRule init requires interval >= 1; expander also coerces as defense-in-depth.
+        assertFailsWith<IllegalArgumentException> {
+            KalendarRule(
                 frequency = KalendarRecurrenceFrequency.DAILY,
                 interval = 0,
                 count = 5,
-            ),
-        )
-        val occurrences = template.expandOccurrences(
-            rangeStart = LocalDate(2026, 1, 1),
-            rangeEnd = LocalDate(2026, 1, 31),
-        )
-        assertEquals(5, occurrences.size)
+            )
+        }
     }
 
     @Test

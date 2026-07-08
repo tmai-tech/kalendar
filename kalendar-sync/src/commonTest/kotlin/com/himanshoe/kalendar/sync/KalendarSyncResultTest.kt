@@ -48,7 +48,7 @@ class KalendarSyncResultTest {
         assertFailsWith<RuntimeException> {
             KalendarSyncResult.Error("boom").getOrThrow()
         }
-        assertFailsWith<SecurityException> {
+        assertFailsWith<KalendarPermissionDeniedException> {
             KalendarSyncResult.PermissionDenied.getOrThrow()
         }
         assertFailsWith<UnsupportedOperationException> {

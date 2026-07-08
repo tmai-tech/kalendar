@@ -149,15 +149,17 @@ internal object KalendarICalCodec {
         return Triple(key, params, value)
     }
 
+    // padStart — String.format is JVM-only; this must stay KMP (incl. wasmJs)
+    private fun pad2(n: Int): String = n.toString().padStart(2, '0')
+    private fun pad4(n: Int): String = n.toString().padStart(4, '0')
+
     private fun LocalDate.toIcalDate(): String =
-        "%04d%02d%02d".format(year, monthNumber, dayOfMonth)
+        "${pad4(year)}${pad2(monthNumber)}${pad2(dayOfMonth)}"
 
     private fun LocalDateTime.toIcalDateTime(): String =
         // Floating local time (omit Z) so importers treat values as wall-clock local, not UTC
-        "%04d%02d%02dT%02d%02d%02d".format(
-            date.year, date.monthNumber, date.dayOfMonth,
-            hour, minute, second
-        )
+        "${pad4(date.year)}${pad2(date.monthNumber)}${pad2(date.dayOfMonth)}" +
+            "T${pad2(hour)}${pad2(minute)}${pad2(second)}"
 
     private fun parseIcalDate(value: String): LocalDate? = runCatching {
         val v = value.substringBefore('T').filter { it.isDigit() }

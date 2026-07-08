@@ -64,7 +64,7 @@ fun KalendarSyncEvent.expandOccurrences(
     val occurrences = mutableListOf<KalendarSyncEvent>()
     var occurrenceCount = 0
     var current = date
-    val startEpoch = date.toEpochDays()
+    val startEpoch = date.toEpochDays().toLong()
 
     // Guard against pathological rules that never advance
     var safety = 0
