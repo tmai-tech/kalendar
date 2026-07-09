@@ -17,10 +17,16 @@
 package com.himanshoe.sample
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material.Button
+import androidx.compose.material.ButtonDefaults
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -53,65 +59,121 @@ import kotlinx.datetime.minus
 import kotlinx.datetime.plus
 import kotlinx.datetime.todayIn
 
+private val SeriesBlue = Color(0xFF5B8DEF)
+private val SelectionCoral = Color(0xFFE86A5D)
+private val ChipSelected = Color(0xFF413D4B)
+private val ChipIdle = Color(0xFF9E9E9E)
+
 /**
- * Sample entry point: Monday-first month view with weekly recurring days highlighted
- * via [KalendarDayConfig.selectedBackgroundColor].
+ * Demo types exposed in the sample type switcher for QA matrix coverage.
+ */
+enum class SampleKalendarDemo {
+    Oceanic,
+    Firey,
+    Season,
+    Agenda,
+}
+
+/**
+ * Sample entry: type switcher + Monday-first demos with past dates disabled.
  */
 @Composable
 fun App() {
+    var demo by remember { mutableStateOf(SampleKalendarDemo.Oceanic) }
+    val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
+
     Column(
         modifier = Modifier
             .wrapContentSize()
             .background(Color(0xFFF5F5F5))
             .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Text(
-            text = "Team standup — every Wednesday (Mon-first grid)",
-            style = TextStyle(fontSize = 16.sp, fontWeight = FontWeight.SemiBold),
-            modifier = Modifier.padding(bottom = 12.dp),
+            text = "Kalendar sample",
+            style = TextStyle(fontSize = 18.sp, fontWeight = FontWeight.Bold),
         )
-        MondayMonthRecurringWeekKalendar(
-            recurringWeekDays = setOf(DayOfWeek.WEDNESDAY),
-            eventName = "Team standup",
-            highlightColor = Color(0xFF5B8DEF),
+        DemoTypeSwitcher(selected = demo, onSelect = { demo = it })
+        Text(
+            text = demoCaption(demo),
+            style = TextStyle(fontSize = 13.sp, color = Color(0xFF616161)),
         )
+        when (demo) {
+            SampleKalendarDemo.Oceanic -> MondayMonthRecurringWeekKalendar(
+                recurringWeekDays = setOf(DayOfWeek.WEDNESDAY),
+                eventName = "Team standup",
+                seriesColor = SeriesBlue,
+                selectionColor = SelectionCoral,
+            )
+            SampleKalendarDemo.Firey -> SimpleTypedKalendar(
+                type = KalendarType.Firey,
+                today = today,
+            )
+            SampleKalendarDemo.Season -> SimpleTypedKalendar(
+                type = KalendarType.Season,
+                today = today,
+            )
+            SampleKalendarDemo.Agenda -> AgendaDemo(today = today)
+        }
     }
 }
 
+@Composable
+private fun DemoTypeSwitcher(
+    selected: SampleKalendarDemo,
+    onSelect: (SampleKalendarDemo) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        SampleKalendarDemo.entries.forEach { demo ->
+            val active = demo == selected
+            Button(
+                onClick = { onSelect(demo) },
+                colors = ButtonDefaults.buttonColors(
+                    backgroundColor = if (active) ChipSelected else ChipIdle,
+                    contentColor = Color.White,
+                ),
+            ) {
+                Text(demo.name)
+            }
+        }
+    }
+}
+
+private fun demoCaption(demo: SampleKalendarDemo): String = when (demo) {
+    SampleKalendarDemo.Oceanic ->
+        "Month · Mon-first · Wed series (blue) · selection (coral) · past disabled"
+    SampleKalendarDemo.Firey -> "Week row · past disabled · minDate = today"
+    SampleKalendarDemo.Season -> "Season overview · past disabled"
+    SampleKalendarDemo.Agenda -> "Agenda list · fixture events · past disabled"
+}
+
 /**
- * Oceanic (month) calendar that:
- * 1. Starts the week grid on **Monday** via [KalendarConfig.startDayOfWeek].
- * 2. Aligns weekday column labels to that same Monday-first order.
- * 3. Highlights every date on [recurringWeekDays] using
- *    [KalendarDayConfig.selectedBackgroundColor] ([highlightColor]).
- * 4. Expands the weekly series across **grid pad** days so a series day that falls in the
- *    previous calendar month (first row Monday / mid-week before the 1st) still highlights.
+ * Oceanic month calendar with weekly series highlight distinct from user selection.
  *
- * @param recurringWeekDays Weekdays in the weekly series (e.g. every Wednesday).
- * @param eventName Title for generated events.
- * @param highlightColor Circle fill from [KalendarDayConfig.selectedBackgroundColor].
- * @param seriesYear Calendar year used as the logical series window (expanded for pad days).
- * @param modifier Modifier for the calendar.
+ * Series days use [seriesColor] via multi-select fill. The tapped day uses [selectionColor].
+ * Dates before today and non-primary month pad cells are disabled by library policy.
  */
 @Composable
 fun MondayMonthRecurringWeekKalendar(
     recurringWeekDays: Set<DayOfWeek>,
     eventName: String,
-    highlightColor: Color,
+    seriesColor: Color,
+    selectionColor: Color,
     modifier: Modifier = Modifier,
     seriesYear: Int = Clock.System.todayIn(TimeZone.currentSystemDefault()).year,
 ) {
     val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
     var selectedDate by remember { mutableStateOf(today) }
     val weekStart = DayOfWeek.MONDAY
-    val isDateBeforeToday: (LocalDate) -> Boolean = remember(today) {
-        { date -> date < today }
-    }
 
     val expansionRange = remember(seriesYear, weekStart) {
         seriesExpansionRangeForYear(seriesYear, weekStart)
     }
-
     val recurringDates = remember(recurringWeekDays, expansionRange) {
         expandWeeklyRecurrence(
             weekDays = recurringWeekDays,
@@ -121,36 +183,41 @@ fun MondayMonthRecurringWeekKalendar(
     }
     val recurringDateSet = remember(recurringDates) { recurringDates.toSet() }
 
-    val events: KalendarEvents = remember(recurringDates, eventName, highlightColor) {
+    val events: KalendarEvents = remember(recurringDates, eventName, seriesColor) {
         recurringDates.map { date ->
             BasicKalendarEvent(
                 date = date,
                 eventName = eventName,
                 eventDescription = "Weekly recurring",
-                eventColor = highlightColor,
+                eventColor = seriesColor,
             )
         }
     }
 
-    val dayConfig = remember(highlightColor) {
+    val baseText = TextStyle(
+        fontSize = 16.sp,
+        brush = Brush.linearGradient(listOf(Color(0xFF413D4B), Color(0xFF413D4B))),
+    )
+    val seriesDayConfig = remember(seriesColor) {
         KalendarDayConfig(
-            selectedBackgroundColor = highlightColor.asSolidColor(),
+            selectedBackgroundColor = seriesColor.asSolidColor(),
             selectedTextColor = Color.White.asSolidColor(),
-            indicatorColor = highlightColor.asSolidColor(),
-            borderColor = highlightColor.asSolidColor(),
-            textStyle = TextStyle(
-                fontSize = 16.sp,
-                brush = Brush.linearGradient(
-                    listOf(Color(0xFF413D4B), Color(0xFF413D4B)),
-                ),
-            ),
+            indicatorColor = seriesColor.asSolidColor(),
+            borderColor = seriesColor.asSolidColor(),
+            textStyle = baseText,
         )
     }
-
-    val dayLabelConfig = remember {
-        KalendarDayLabelConfig.default().copy(
-            dayNameFormatter = { day -> mondayFirstShortLabel(day) },
+    val selectionDayConfig = remember(selectionColor) {
+        KalendarDayConfig(
+            selectedBackgroundColor = selectionColor.asSolidColor(),
+            selectedTextColor = Color.White.asSolidColor(),
+            indicatorColor = selectionColor.asSolidColor(),
+            borderColor = selectionColor.asSolidColor(),
+            textStyle = baseText,
         )
+    }
+    val idleDayConfig = remember {
+        KalendarDayConfig(textStyle = baseText)
     }
 
     Kalendar(
@@ -161,28 +228,30 @@ fun MondayMonthRecurringWeekKalendar(
         onDaySelectionAction = OnDaySelectionAction.NoOp,
         config = KalendarConfig(
             startDayOfWeek = weekStart,
-            dayConfig = dayConfig,
-            dayLabelConfig = dayLabelConfig,
+            dayConfig = idleDayConfig,
+            dayLabelConfig = KalendarDayLabelConfig.default().copy(
+                dayNameFormatter = { day -> mondayFirstShortLabel(day) },
+            ),
             minDate = today,
-            disabledDates = isDateBeforeToday,
-            onVisibleRangeChange = { start, end ->
-                println("Visible grid (includes pad): $start → $end")
-            },
+            disabledDates = { it < today },
         ),
-        dayContent = { date, isSelected, dayEvents ->
-            val isRecurringDay = date in recurringDateSet
-            val isDisabled = isDateBeforeToday(date)
+        dayContent = { date, isSelected, dayEvents, isDisabled ->
+            val isRecurring = date in recurringDateSet && !isDisabled
+            val dayConfig = when {
+                isSelected -> selectionDayConfig
+                isRecurring -> seriesDayConfig
+                else -> idleDayConfig
+            }
             KalendarDay(
                 date = date,
-                selectedDate = if (isSelected) date else selectedDate,
-                selectedDates = if (isRecurringDay && !isDisabled) listOf(date) else emptyList(),
+                selectedDate = if (isSelected) date else null,
+                selectedDates = if (isRecurring && !isSelected) listOf(date) else emptyList(),
                 events = dayEvents,
                 dayConfig = dayConfig,
                 isDisabled = isDisabled,
-                onDayClick = { clicked, clickedEvents ->
-                    if (!isDateBeforeToday(clicked)) {
+                onDayClick = { clicked, _ ->
+                    if (!isDisabled) {
                         selectedDate = clicked
-                        println("Tapped $clicked — events: ${clickedEvents.map { it.eventName }}")
                     }
                 },
             )
@@ -190,14 +259,79 @@ fun MondayMonthRecurringWeekKalendar(
     )
 }
 
+@Composable
+private fun SimpleTypedKalendar(
+    type: KalendarType,
+    today: LocalDate,
+    modifier: Modifier = Modifier,
+) {
+    var selectedDate by remember { mutableStateOf(today) }
+    val events = remember(today) {
+        listOf(
+            BasicKalendarEvent(date = today, eventName = "Today", eventColor = SeriesBlue),
+            BasicKalendarEvent(
+                date = today.plus(1, DateTimeUnit.DAY),
+                eventName = "Tomorrow",
+                eventColor = SeriesBlue,
+            ),
+        )
+    }
+
+    Kalendar(
+        type = type,
+        selectedDate = selectedDate,
+        modifier = modifier.fillMaxWidth(),
+        events = events,
+        onDaySelectionAction = OnDaySelectionAction.Single { date, _ ->
+            selectedDate = date
+        },
+        config = KalendarConfig(
+            startDayOfWeek = DayOfWeek.MONDAY,
+            minDate = today,
+            disabledDates = { it < today },
+            dayConfig = KalendarDayConfig(
+                selectedBackgroundColor = SelectionCoral.asSolidColor(),
+                selectedTextColor = Color.White.asSolidColor(),
+            ),
+        ),
+    )
+}
+
+@Composable
+private fun AgendaDemo(
+    today: LocalDate,
+    modifier: Modifier = Modifier,
+) {
+    val events = remember(today) {
+        listOf(
+            BasicKalendarEvent(
+                date = today.minus(2, DateTimeUnit.DAY),
+                eventName = "Past (disabled)",
+                eventColor = Color.Gray,
+            ),
+            BasicKalendarEvent(date = today, eventName = "Standup", eventColor = SeriesBlue),
+            BasicKalendarEvent(
+                date = today.plus(3, DateTimeUnit.DAY),
+                eventName = "Retro",
+                eventColor = SelectionCoral,
+            ),
+        )
+    }
+    Kalendar(
+        type = KalendarType.Agenda,
+        modifier = modifier.fillMaxWidth(),
+        events = events,
+        onDaySelectionAction = OnDaySelectionAction.Single { _, _ -> },
+        config = KalendarConfig(
+            minDate = today,
+            disabledDates = { it < today },
+        ),
+    )
+}
+
 /**
- * Inclusive date range for expanding a weekly series that must paint every cell of every
- * Monday-first month grid in [year].
- *
- * January's first grid week often starts in December of [year] - 1. December's last grid week
- * often ends in January of [year] + 1. Naïve Jan 1…Dec 31 expansion drops those pad cells —
- * that is the month-transition edge case (first Monday of the displayed January week lands in
- * the previous calendar month/year).
+ * Inclusive date range for expanding a weekly series across every Monday-first month grid
+ * cell in [year], including December pad of the previous year and January pad of the next.
  */
 internal fun seriesExpansionRangeForYear(
     year: Int,
@@ -213,7 +347,6 @@ internal fun seriesExpansionRangeForYear(
 
 /**
  * First day of the week containing [date] for [startDayOfWeek].
- * May fall in the previous calendar month (and previous year).
  */
 internal fun startOfWeekContaining(
     date: LocalDate,
@@ -245,8 +378,7 @@ internal fun expandWeeklyRecurrence(
 }
 
 /**
- * Short weekday labels ordered for a Monday-first grid (en-GB style), independent of JVM locale.
- * Must stay in sync with [KalendarConfig.startDayOfWeek] = [DayOfWeek.MONDAY].
+ * Short weekday labels for a Monday-first grid.
  */
 internal fun mondayFirstShortLabel(day: DayOfWeek): String = when (day) {
     DayOfWeek.MONDAY -> "Mon"

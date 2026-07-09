@@ -36,7 +36,10 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -48,7 +51,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.fastMap
+import com.himanshoe.kalendar.foundation.action.KalendarSelectedDayRange
 import com.himanshoe.kalendar.foundation.action.OnDaySelectionAction
+import com.himanshoe.kalendar.foundation.action.isDateInteractable
+import com.himanshoe.kalendar.foundation.action.isRangeFullyAllowed
 import com.himanshoe.kalendar.foundation.component.config.KalendarConfig
 import com.himanshoe.kalendar.foundation.component.config.KalendarHeaderConfig
 import com.himanshoe.kalendar.foundation.event.KalendarEvents
@@ -89,6 +95,8 @@ private fun KalendarAgendaContent(
                 )
             }
     }
+    var rangeStartDate by remember { mutableStateOf<LocalDate?>(config.initialSelectedRange?.start) }
+    var rangeEndDate by remember { mutableStateOf<LocalDate?>(config.initialSelectedRange?.endInclusive) }
 
     Box(
         modifier = modifier.background(brush = Brush.linearGradient(config.backgroundColor.value)),
@@ -107,18 +115,50 @@ private fun KalendarAgendaContent(
                     itemsIndexed(
                         items = dateEvents,
                         key = { index, event ->
-                            "event_${date.toEpochDays()}_${index}_${event.eventName.hashCode()}"
+                            "event_${date.toEpochDays()}_${index}_${event.eventName}"
                         },
                     ) { _, event ->
                         AgendaEventRow(
                             event = event,
-                            onClick = {
+                            onClick = click@{
+                                if (!event.date.isDateInteractable(config)) return@click
                                 when (val action = onDaySelectionAction) {
                                     is OnDaySelectionAction.Single ->
                                         action.onDayClick(event.date, dateEvents)
                                     is OnDaySelectionAction.Multiple ->
                                         action.onDayClick(event.date, dateEvents)
-                                    is OnDaySelectionAction.Range -> Unit
+                                    is OnDaySelectionAction.Range -> {
+                                        val start = rangeStartDate
+                                        val end = rangeEndDate
+                                        if (start == null || end != null) {
+                                            rangeStartDate = event.date
+                                            rangeEndDate = null
+                                        } else {
+                                            var rangeStart = start
+                                            var rangeEnd = event.date
+                                            if (rangeStart > rangeEnd) {
+                                                val tmp = rangeStart
+                                                rangeStart = rangeEnd
+                                                rangeEnd = tmp
+                                            }
+                                            if (!isRangeFullyAllowed(
+                                                    rangeStart,
+                                                    rangeEnd,
+                                                    isDateAllowed = { it.isDateInteractable(config) },
+                                                )
+                                            ) {
+                                                return@click
+                                            }
+                                            rangeStartDate = rangeStart
+                                            rangeEndDate = rangeEnd
+                                            val range = KalendarSelectedDayRange(
+                                                start = rangeStart,
+                                                endInclusive = rangeEnd,
+                                            )
+                                            val eventsInRange = events.filter { it.date in range }
+                                            action.onRangeSelected(range, eventsInRange)
+                                        }
+                                    }
                                 }
                             },
                         )

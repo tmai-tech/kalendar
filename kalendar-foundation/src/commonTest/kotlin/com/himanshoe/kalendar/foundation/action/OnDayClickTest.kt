@@ -21,6 +21,7 @@ import com.himanshoe.kalendar.foundation.event.KalendarEvent
 import kotlinx.datetime.LocalDate
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -200,7 +201,6 @@ class OnDayClickTest {
     @Test
     fun noOp_stillUpdatesSingleDateViaSingleImpl() {
         var clicked: LocalDate? = null
-        // NoOp is implemented as Single with empty body
         d1.onDayClick(
             events = emptyList(),
             rangeStartDate = null,
@@ -213,5 +213,46 @@ class OnDayClickTest {
             onUpdateSelectedRange = {},
         )
         assertEquals(d1, clicked)
+    }
+
+    @Test
+    fun disallowed_date_is_ignored() {
+        var clicked: LocalDate? = null
+        var callbackFired = false
+        d1.onDayClick(
+            events = emptyList(),
+            rangeStartDate = null,
+            rangeEndDate = null,
+            onDaySelectionAction = OnDaySelectionAction.Single { _, _ -> callbackFired = true },
+            onClickedNewDate = { clicked = it },
+            onMultipleClickedNewDate = {},
+            onClickedRangeStartDate = {},
+            onClickedRangeEndDate = {},
+            onUpdateSelectedRange = {},
+            isDateAllowed = { false },
+        )
+        assertNull(clicked)
+        assertFalse(callbackFired)
+    }
+
+    @Test
+    fun range_with_disallowed_middle_is_refused() {
+        var range: KalendarSelectedDayRange? = null
+        var rangeCallback = false
+        d3.onDayClick(
+            events = emptyList(),
+            allEvents = allEvents,
+            rangeStartDate = d1,
+            rangeEndDate = null,
+            onDaySelectionAction = OnDaySelectionAction.Range { _, _ -> rangeCallback = true },
+            onClickedNewDate = {},
+            onMultipleClickedNewDate = {},
+            onClickedRangeStartDate = {},
+            onClickedRangeEndDate = {},
+            onUpdateSelectedRange = { range = it },
+            isDateAllowed = { it != d2 },
+        )
+        assertNull(range)
+        assertFalse(rangeCallback)
     }
 }

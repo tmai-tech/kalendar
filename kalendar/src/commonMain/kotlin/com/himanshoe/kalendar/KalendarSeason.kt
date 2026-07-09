@@ -66,6 +66,7 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.Month
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
+import com.himanshoe.kalendar.foundation.action.isDateInteractable
 
 /**
  * Meteorological seasons for the northern hemisphere.
@@ -244,7 +245,7 @@ internal fun KalendarSeason(
     modifier: Modifier = Modifier,
     controller: KalendarController? = null,
     onDaySelectionAction: OnDaySelectionAction = OnDaySelectionAction.NoOp,
-    dayContent: (@Composable (date: LocalDate, isSelected: Boolean, events: List<KalendarEvent>) -> Unit)? = null,
+    dayContent: (@Composable (LocalDate, Boolean, List<KalendarEvent>, Boolean) -> Unit)? = null,
 ) {
     KalendarSeasonContent(
         selectedDate = selectedDate,
@@ -265,7 +266,7 @@ private fun KalendarSeasonContent(
     config: KalendarConfig,
     modifier: Modifier = Modifier,
     controller: KalendarController? = null,
-    dayContent: (@Composable (date: LocalDate, isSelected: Boolean, events: List<KalendarEvent>) -> Unit)? = null,
+    dayContent: (@Composable (LocalDate, Boolean, List<KalendarEvent>, Boolean) -> Unit)? = null,
 ) {
     val startDayOfWeek = config.startDayOfWeek
     val today = remember { Clock.System.todayIn(TimeZone.currentSystemDefault()) }
@@ -358,6 +359,7 @@ private fun KalendarSeasonContent(
                             onClickedRangeStartDate = { rangeStartDate = it },
                             onClickedRangeEndDate = { rangeEndDate = it },
                             onUpdateSelectedRange = { selectedRange.value = it },
+                            isDateAllowed = { it.isDateInteractable(config) },
                         )
                     },
                 )
@@ -424,7 +426,7 @@ private fun SeasonMiniMonthGrid(
     palette: KalendarSeasonPalette,
     onDaySelectionAction: OnDaySelectionAction,
     onDayClick: (LocalDate) -> Unit,
-    dayContent: (@Composable (date: LocalDate, isSelected: Boolean, events: List<KalendarEvent>) -> Unit)?,
+    dayContent: (@Composable (LocalDate, Boolean, List<KalendarEvent>, Boolean) -> Unit)?,
 ) {
     val firstOfMonth = LocalDate(year, month, 1)
     val dates = getMonthDates(firstOfMonth, startDayOfWeek)
@@ -483,12 +485,11 @@ private fun SeasonMiniMonthGrid(
                                 else -> date == selectedDate
                             }
                             val isToday = date == today
-                            val isDisabled = config.disabledDates(date) ||
-                                isDateOutOfBounds(date, config.minDate, config.maxDate)
+                            val isDisabled = !date.isDateInteractable(config, isPrimaryPeriod = true)
                             val dateEvents = eventsByDate[date] ?: emptyList()
 
                             if (dayContent != null) {
-                                dayContent(date, isSelected, dateEvents)
+                                dayContent(date, isSelected, dateEvents, isDisabled)
                             } else {
                                 SeasonMiniDayCell(
                                     date = date,

@@ -50,6 +50,7 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.plus
 import kotlinx.datetime.todayIn
+import com.himanshoe.kalendar.foundation.action.isDateInteractable
 
 @Composable
 internal fun KalendarAerial(
@@ -59,7 +60,7 @@ internal fun KalendarAerial(
     onDaySelectionAction: OnDaySelectionAction = OnDaySelectionAction.NoOp,
     config: KalendarConfig = KalendarConfig(),
     controller: KalendarController? = null,
-    dayContent: (@Composable (date: LocalDate, isSelected: Boolean, events: List<KalendarEvent>) -> Unit)? = null,
+    dayContent: (@Composable (LocalDate, Boolean, List<KalendarEvent>, Boolean) -> Unit)? = null,
 ) {
     KalendarAerialContent(
         selectedDate = selectedDate,
@@ -80,7 +81,7 @@ private fun KalendarAerialContent(
     events: KalendarEvents,
     config: KalendarConfig,
     controller: KalendarController?,
-    dayContent: (@Composable (date: LocalDate, isSelected: Boolean, events: List<KalendarEvent>) -> Unit)? = null,
+    dayContent: (@Composable (LocalDate, Boolean, List<KalendarEvent>, Boolean) -> Unit)? = null,
 ) {
     val startDayOfWeek = config.startDayOfWeek
     val today = remember { Clock.System.todayIn(TimeZone.currentSystemDefault()) }
@@ -168,7 +169,8 @@ private fun KalendarAerialContent(
                 dates = { displayDates },
             ) { date ->
                 val dateEvents = eventsByDate[date] ?: emptyList()
-                val outOfBounds = isDateOutOfBounds(date, config.minDate, config.maxDate)
+                val isDisabled = !date.isDateInteractable(config, isPrimaryPeriod = true)
+                val isDateAllowed: (LocalDate) -> Boolean = { it.isDateInteractable(config) }
                 if (dayContent != null) {
                     val isSelected = when (onDaySelectionAction) {
                         is OnDaySelectionAction.Multiple -> date in multiSelectDates
@@ -176,7 +178,7 @@ private fun KalendarAerialContent(
                             selectedRange.value?.let { date in it } == true || date == clickedNewDate
                         else -> date == clickedNewDate
                     }
-                    dayContent(date, isSelected, dateEvents)
+                    dayContent(date, isSelected, dateEvents, isDisabled)
                 } else {
                     KalendarDay(
                         date = date,
@@ -198,12 +200,13 @@ private fun KalendarAerialContent(
                                 onClickedRangeStartDate = { rangeStartDate = it },
                                 onClickedRangeEndDate = { rangeEndDate = it },
                                 onUpdateSelectedRange = { selectedRange.value = it },
+                                isDateAllowed = isDateAllowed,
                             )
                         },
                         dayConfig = config.dayConfig,
                         events = dateEvents,
                         selectedDate = clickedNewDate,
-                        isDisabled = config.disabledDates(date) || outOfBounds,
+                        isDisabled = isDisabled,
                     )
                 }
             }

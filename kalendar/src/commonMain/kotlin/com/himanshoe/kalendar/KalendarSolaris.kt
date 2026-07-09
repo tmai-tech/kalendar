@@ -50,6 +50,7 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.minus
 import kotlinx.datetime.plus
 import kotlinx.datetime.todayIn
+import com.himanshoe.kalendar.foundation.action.isDateInteractable
 
 @Composable
 internal fun KalendarSolaris(
@@ -59,7 +60,7 @@ internal fun KalendarSolaris(
     onDaySelectionAction: OnDaySelectionAction = OnDaySelectionAction.NoOp,
     config: KalendarConfig = KalendarConfig(),
     controller: KalendarController? = null,
-    dayContent: (@Composable (date: LocalDate, isSelected: Boolean, events: List<KalendarEvent>) -> Unit)? = null,
+    dayContent: (@Composable (LocalDate, Boolean, List<KalendarEvent>, Boolean) -> Unit)? = null,
 ) {
     KalendarSolarisContent(
         selectedDate = selectedDate,
@@ -80,7 +81,7 @@ private fun KalendarSolarisContent(
     config: KalendarConfig,
     modifier: Modifier = Modifier,
     controller: KalendarController? = null,
-    dayContent: (@Composable (date: LocalDate, isSelected: Boolean, events: List<KalendarEvent>) -> Unit)? = null,
+    dayContent: (@Composable (LocalDate, Boolean, List<KalendarEvent>, Boolean) -> Unit)? = null,
 ) {
     val startDayOfWeek = config.startDayOfWeek
     val today = remember { Clock.System.todayIn(TimeZone.currentSystemDefault()) }
@@ -172,7 +173,13 @@ private fun KalendarSolarisContent(
                 val isCurrentMonth =
                     date.year == pageMonthStart.year && date.month == pageMonthStart.month
                 val dateEvents = eventsByDate[date] ?: emptyList()
-                val outOfBounds = isDateOutOfBounds(date, config.minDate, config.maxDate)
+                val isDisabled = !date.isDateInteractable(config, isPrimaryPeriod = isCurrentMonth)
+                val isDateAllowed: (LocalDate) -> Boolean = { candidate ->
+                    val primary =
+                        candidate.year == pageMonthStart.year &&
+                            candidate.month == pageMonthStart.month
+                    candidate.isDateInteractable(config, isPrimaryPeriod = primary)
+                }
                 if (dayContent != null) {
                     val isSelected = when (onDaySelectionAction) {
                         is OnDaySelectionAction.Multiple -> date in multiSelectDates
@@ -180,7 +187,7 @@ private fun KalendarSolarisContent(
                             selectedRange.value?.let { date in it } == true || date == clickedNewDate
                         else -> date == clickedNewDate
                     }
-                    dayContent(date, isSelected, dateEvents)
+                    dayContent(date, isSelected, dateEvents, isDisabled)
                 } else {
                     KalendarDay(
                         date = date,
@@ -202,12 +209,13 @@ private fun KalendarSolarisContent(
                                 onClickedRangeStartDate = { rangeStartDate = it },
                                 onClickedRangeEndDate = { rangeEndDate = it },
                                 onUpdateSelectedRange = { selectedRange.value = it },
+                                isDateAllowed = isDateAllowed,
                             )
                         },
                         dayConfig = config.dayConfig,
                         events = dateEvents,
                         selectedDate = clickedNewDate,
-                        isDisabled = config.disabledDates(date) || !isCurrentMonth || outOfBounds,
+                        isDisabled = isDisabled,
                     )
                 }
             }

@@ -66,6 +66,7 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.Month
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
+import com.himanshoe.kalendar.foundation.action.isDateInteractable
 
 @Composable
 internal fun KalendarYearly(
@@ -75,7 +76,7 @@ internal fun KalendarYearly(
     modifier: Modifier = Modifier,
     controller: KalendarController? = null,
     onDaySelectionAction: OnDaySelectionAction = OnDaySelectionAction.NoOp,
-    dayContent: (@Composable (date: LocalDate, isSelected: Boolean, events: List<KalendarEvent>) -> Unit)? = null,
+    dayContent: (@Composable (LocalDate, Boolean, List<KalendarEvent>, Boolean) -> Unit)? = null,
 ) {
     KalendarYearlyContent(
         selectedDate = selectedDate,
@@ -96,7 +97,7 @@ private fun KalendarYearlyContent(
     config: KalendarConfig,
     modifier: Modifier = Modifier,
     controller: KalendarController? = null,
-    dayContent: (@Composable (date: LocalDate, isSelected: Boolean, events: List<KalendarEvent>) -> Unit)? = null,
+    dayContent: (@Composable (LocalDate, Boolean, List<KalendarEvent>, Boolean) -> Unit)? = null,
 ) {
     val startDayOfWeek = config.startDayOfWeek
     val today = remember { Clock.System.todayIn(TimeZone.currentSystemDefault()) }
@@ -182,6 +183,7 @@ private fun KalendarYearlyContent(
                             onClickedRangeStartDate = { rangeStartDate = it },
                             onClickedRangeEndDate = { rangeEndDate = it },
                             onUpdateSelectedRange = { selectedRange.value = it },
+                            isDateAllowed = { it.isDateInteractable(config) },
                         )
                     },
                 )
@@ -239,7 +241,7 @@ private fun MiniMonthGrid(
     config: KalendarConfig,
     onDaySelectionAction: OnDaySelectionAction,
     onDayClick: (LocalDate) -> Unit,
-    dayContent: (@Composable (date: LocalDate, isSelected: Boolean, events: List<KalendarEvent>) -> Unit)?,
+    dayContent: (@Composable (LocalDate, Boolean, List<KalendarEvent>, Boolean) -> Unit)?,
 ) {
     val firstOfMonth = LocalDate(year, month, 1)
     val dates = getMonthDates(firstOfMonth, startDayOfWeek)
@@ -264,7 +266,6 @@ private fun MiniMonthGrid(
             ),
             modifier = Modifier.padding(bottom = 4.dp),
         )
-        // Non-lazy grid avoids unbounded height inside verticalScroll
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceEvenly,
@@ -291,7 +292,7 @@ private fun MiniMonthGrid(
             ) {
                 week.forEach { date ->
                     Box(modifier = Modifier.weight(1f)) {
-                        if (date.month == month) {
+                        if (date.month == month && date.year == year) {
                             val isSelected = when (onDaySelectionAction) {
                                 is OnDaySelectionAction.Multiple -> date in selectedDates
                                 is OnDaySelectionAction.Range ->
@@ -299,12 +300,11 @@ private fun MiniMonthGrid(
                                 else -> date == selectedDate
                             }
                             val isToday = date == today
-                            val isDisabled = config.disabledDates(date) ||
-                                isDateOutOfBounds(date, config.minDate, config.maxDate)
+                            val isDisabled = !date.isDateInteractable(config, isPrimaryPeriod = true)
                             val dateEvents = eventsByDate[date] ?: emptyList()
 
                             if (dayContent != null) {
-                                dayContent(date, isSelected, dateEvents)
+                                dayContent(date, isSelected, dateEvents, isDisabled)
                             } else {
                                 MiniDayCell(
                                     date = date,

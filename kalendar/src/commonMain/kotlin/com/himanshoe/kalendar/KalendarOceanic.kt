@@ -32,6 +32,7 @@ import androidx.compose.ui.graphics.Brush
 import com.himanshoe.kalendar.foundation.KalendarScaffold
 import com.himanshoe.kalendar.foundation.action.KalendarSelectedDayRange
 import com.himanshoe.kalendar.foundation.action.OnDaySelectionAction
+import com.himanshoe.kalendar.foundation.action.isDateInteractable
 import com.himanshoe.kalendar.foundation.action.onDayClick
 import com.himanshoe.kalendar.foundation.component.KalendarDay
 import com.himanshoe.kalendar.foundation.component.KalendarHeader
@@ -52,7 +53,7 @@ internal fun KalendarOceanic(
     modifier: Modifier = Modifier,
     controller: KalendarController? = null,
     onDaySelectionAction: OnDaySelectionAction = OnDaySelectionAction.NoOp,
-    dayContent: (@Composable (date: LocalDate, isSelected: Boolean, events: List<KalendarEvent>) -> Unit)? = null,
+    dayContent: (@Composable (LocalDate, Boolean, List<KalendarEvent>, Boolean) -> Unit)? = null,
 ) {
     KalendarOceanicContent(
         selectedDate = selectedDate,
@@ -73,7 +74,7 @@ private fun KalendarOceanicContent(
     config: KalendarConfig,
     modifier: Modifier = Modifier,
     controller: KalendarController? = null,
-    dayContent: (@Composable (date: LocalDate, isSelected: Boolean, events: List<KalendarEvent>) -> Unit)? = null,
+    dayContent: (@Composable (LocalDate, Boolean, List<KalendarEvent>, Boolean) -> Unit)? = null,
 ) {
     val startDayOfWeek = config.startDayOfWeek
     val initialDate = config.firstVisibleDate ?: selectedDate
@@ -135,6 +136,9 @@ private fun KalendarOceanicContent(
             year = currentMonth.year,
             showArrows = config.showArrows,
             canNavigateBack = canGoBack,
+            canNavigateForward = canGoForward,
+            previousContentDescription = "Previous month",
+            nextContentDescription = "Next month",
             onPreviousClick = {
                 if (canGoBack) {
                     currentMonth = currentMonth.minus(1, DateTimeUnit.MONTH)
@@ -156,7 +160,12 @@ private fun KalendarOceanicContent(
             val isCurrentMonth =
                 date.year == currentMonth.year && date.month == currentMonth.month
             val dateEvents = eventsByDate[date] ?: emptyList()
-            val outOfBounds = isDateOutOfBounds(date, config.minDate, config.maxDate)
+            val isDisabled = !date.isDateInteractable(config, isPrimaryPeriod = isCurrentMonth)
+            val isDateAllowed: (LocalDate) -> Boolean = { candidate ->
+                val primary =
+                    candidate.year == currentMonth.year && candidate.month == currentMonth.month
+                candidate.isDateInteractable(config, isPrimaryPeriod = primary)
+            }
             if (dayContent != null) {
                 val isSelected = when (onDaySelectionAction) {
                     is OnDaySelectionAction.Multiple -> date in multiSelectDates
@@ -164,7 +173,7 @@ private fun KalendarOceanicContent(
                         selectedRange.value?.let { date in it } == true || date == clickedNewDate
                     else -> date == clickedNewDate
                 }
-                dayContent(date, isSelected, dateEvents)
+                dayContent(date, isSelected, dateEvents, isDisabled)
             } else {
                 KalendarDay(
                     date = date,
@@ -178,20 +187,21 @@ private fun KalendarOceanicContent(
                             rangeEndDate = rangeEndDate,
                             onDaySelectionAction = onDaySelectionAction,
                             onClickedNewDate = { clickedNewDate = it },
-                            onMultipleClickedNewDate = { date ->
+                            onMultipleClickedNewDate = { tapped ->
                                 clickedNewDates = clickedNewDates.toMutableList().apply {
-                                    if (contains(date)) remove(date) else add(date)
+                                    if (contains(tapped)) remove(tapped) else add(tapped)
                                 }
                             },
                             onClickedRangeStartDate = { rangeStartDate = it },
                             onClickedRangeEndDate = { rangeEndDate = it },
                             onUpdateSelectedRange = { selectedRange.value = it },
+                            isDateAllowed = isDateAllowed,
                         )
                     },
                     dayConfig = config.dayConfig,
                     events = dateEvents,
                     selectedDate = clickedNewDate,
-                    isDisabled = config.disabledDates(date) || !isCurrentMonth || outOfBounds,
+                    isDisabled = isDisabled,
                 )
             }
         }
