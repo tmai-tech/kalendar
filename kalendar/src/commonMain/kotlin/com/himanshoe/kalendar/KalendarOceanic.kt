@@ -120,12 +120,9 @@ private fun KalendarOceanicContent(
         onDispose { generation?.let { controller?.detachScrollImpl(it) } }
     }
 
-    LaunchedEffect(currentMonth) {
-        val monthStart = currentMonth.minus(currentMonth.dayOfMonth - 1, DateTimeUnit.DAY)
-        config.onVisibleRangeChange?.invoke(
-            monthStart,
-            monthStart.plus(1, DateTimeUnit.MONTH).minus(1, DateTimeUnit.DAY)
-        )
+    LaunchedEffect(currentMonth, startDayOfWeek) {
+        val grid = getMonthDates(currentMonth, startDayOfWeek)
+        config.onVisibleRangeChange?.invoke(grid.first(), grid.last())
     }
 
     Column(
@@ -156,7 +153,8 @@ private fun KalendarOceanicContent(
             dayLabelConfig = config.dayLabelConfig,
             dates = { displayDates },
         ) { date ->
-            val isCurrentMonth = date.month == currentMonth.month
+            val isCurrentMonth =
+                date.year == currentMonth.year && date.month == currentMonth.month
             val dateEvents = eventsByDate[date] ?: emptyList()
             val outOfBounds = isDateOutOfBounds(date, config.minDate, config.maxDate)
             if (dayContent != null) {
@@ -210,19 +208,44 @@ internal fun isDateOutOfBounds(
     return beforeMin || afterMax
 }
 
+/**
+ * Returns the first day of the week that contains [date], according to [startDayOfWeek].
+ *
+ * When [date] is the 1st of a month and that 1st is not [startDayOfWeek], the result lands
+ * in the **previous calendar month** (and possibly the previous year). Example with
+ * Monday-first weeks: 1 Jan 2026 is a Thursday → this returns Mon 29 Dec 2025.
+ */
+internal fun startOfWeekContaining(
+    date: LocalDate,
+    startDayOfWeek: DayOfWeek,
+): LocalDate {
+    val daysBack = (date.dayOfWeek.ordinal - startDayOfWeek.ordinal + 7) % 7
+    return date.minus(daysBack, DateTimeUnit.DAY)
+}
+
+/**
+ * Builds the full month grid for [currentMonth] (any day in that month is accepted as anchor).
+ *
+ * The first cell is always [startOfWeekContaining] the 1st of the month — so when the 1st is
+ * not the configured week start, leading cells are dates from the previous calendar month.
+ * Trailing cells fill through the end of the week that contains the last day of the month.
+ * Length is always a multiple of 7.
+ */
 internal fun getMonthDates(
     currentMonth: LocalDate,
-    startDayOfWeek: DayOfWeek
+    startDayOfWeek: DayOfWeek,
 ): List<LocalDate> {
     val firstDayOfMonth = currentMonth.minus(currentMonth.dayOfMonth - 1, DateTimeUnit.DAY)
     val lastDayOfMonth = firstDayOfMonth.plus(1, DateTimeUnit.MONTH).minus(1, DateTimeUnit.DAY)
-    val firstDayOffset = (firstDayOfMonth.dayOfWeek.ordinal - startDayOfWeek.ordinal + 7) % 7
-    val dates = (-firstDayOffset until lastDayOfMonth.dayOfMonth).map {
-        firstDayOfMonth.plus(it.toLong(), DateTimeUnit.DAY)
-    }.toMutableList()
-    // Trailing padding so the grid is a full multiple of 7 columns
-    while (dates.size % 7 != 0) {
-        dates += dates.last().plus(1, DateTimeUnit.DAY)
+    val gridStart = startOfWeekContaining(firstDayOfMonth, startDayOfWeek)
+    val gridEnd = startOfWeekContaining(lastDayOfMonth, startDayOfWeek)
+        .plus(6, DateTimeUnit.DAY)
+
+    val dates = ArrayList<LocalDate>(42)
+    var cursor = gridStart
+    while (cursor <= gridEnd) {
+        dates += cursor
+        cursor = cursor.plus(1, DateTimeUnit.DAY)
     }
     return dates
 }

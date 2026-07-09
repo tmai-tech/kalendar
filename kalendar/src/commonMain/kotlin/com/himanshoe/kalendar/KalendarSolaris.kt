@@ -169,7 +169,8 @@ private fun KalendarSolarisContent(
                 dayLabelConfig = config.dayLabelConfig,
                 dates = { displayDates },
             ) { date ->
-                val isCurrentMonth = date.month == pageMonthStart.month
+                val isCurrentMonth =
+                    date.year == pageMonthStart.year && date.month == pageMonthStart.month
                 val dateEvents = eventsByDate[date] ?: emptyList()
                 val outOfBounds = isDateOutOfBounds(date, config.minDate, config.maxDate)
                 if (dayContent != null) {
@@ -212,16 +213,14 @@ private fun KalendarSolarisContent(
             }
         }
     }
-    LaunchedEffect(pagerState.currentPage) {
+    LaunchedEffect(pagerState.currentPage, startDayOfWeek) {
         val pageMonthStart = todayMonthStart.plus(
             value = pagerState.currentPage - centerPage,
             unit = DateTimeUnit.MONTH,
         ).let { it.minus(it.dayOfMonth - 1, DateTimeUnit.DAY) }
         currentMonth = pageMonthStart
-        config.onVisibleRangeChange?.invoke(
-            pageMonthStart,
-            pageMonthStart.plus(1, DateTimeUnit.MONTH).minus(1, DateTimeUnit.DAY)
-        )
+        val grid = getMonthDates(pageMonthStart, startDayOfWeek)
+        config.onVisibleRangeChange?.invoke(grid.first(), grid.last())
     }
 }
 

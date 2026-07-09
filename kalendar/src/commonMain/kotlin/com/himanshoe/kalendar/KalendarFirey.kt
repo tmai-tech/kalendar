@@ -198,10 +198,7 @@ private fun KalendarFireyContent(
 }
 
 internal fun getWeekDates(currentDay: LocalDate, startDayOfWeek: DayOfWeek): List<LocalDate> {
-    val startOfWeek = currentDay.minus(
-        (currentDay.dayOfWeek.ordinal - startDayOfWeek.ordinal + 7) % 7,
-        DateTimeUnit.DAY
-    )
+    val startOfWeek = startOfWeekContaining(currentDay, startDayOfWeek)
     return (0..6).map { startOfWeek.plus(it, DateTimeUnit.DAY) }
 }
 

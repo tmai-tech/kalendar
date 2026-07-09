@@ -53,12 +53,39 @@ class KalendarDateGridTest {
 
     @Test
     fun getMonthDates_leadingPadding_fromPreviousMonth() {
-        // May 2026 starts on Friday with Monday week start → leading Mon–Thu from April
         val dates = getMonthDates(LocalDate(2026, 5, 1), DayOfWeek.MONDAY)
         val leading = dates.takeWhile { it.month != Month.MAY }
         assertTrue(leading.isNotEmpty())
         assertTrue(leading.all { it.month == Month.APRIL })
         assertEquals(DayOfWeek.MONDAY, dates.first().dayOfWeek)
+    }
+
+    @Test
+    fun startOfWeekContaining_januaryFirstThursday_returnsPreviousYearMonday() {
+        val jan1 = LocalDate(2026, 1, 1)
+        assertEquals(DayOfWeek.THURSDAY, jan1.dayOfWeek)
+        val weekStart = startOfWeekContaining(jan1, DayOfWeek.MONDAY)
+        assertEquals(LocalDate(2025, 12, 29), weekStart)
+        assertEquals(DayOfWeek.MONDAY, weekStart.dayOfWeek)
+        assertEquals(2025, weekStart.year)
+    }
+
+    @Test
+    fun getMonthDates_january2026_firstGridMonday_isInPreviousCalendarMonth() {
+        val dates = getMonthDates(LocalDate(2026, 1, 1), DayOfWeek.MONDAY)
+        assertEquals(LocalDate(2025, 12, 29), dates.first())
+        assertEquals(DayOfWeek.MONDAY, dates.first().dayOfWeek)
+        assertEquals(Month.DECEMBER, dates.first().month)
+        assertEquals(2025, dates.first().year)
+        assertTrue(LocalDate(2026, 1, 1) in dates)
+        assertEquals(0, dates.size % 7)
+    }
+
+    @Test
+    fun getMonthDates_january2026_firstWednesdayOnGrid_isPreviousYearPad() {
+        val dates = getMonthDates(LocalDate(2026, 1, 1), DayOfWeek.MONDAY)
+        val firstWednesday = dates.first { it.dayOfWeek == DayOfWeek.WEDNESDAY }
+        assertEquals(LocalDate(2025, 12, 31), firstWednesday)
     }
 
     @Test
